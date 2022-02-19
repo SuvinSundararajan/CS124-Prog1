@@ -126,7 +126,7 @@ double Graph::kruskal()
             ds.merge(set_u, set_v);
         }
     }
-    cout << "-------------MST's max edge weight: " << max_edge_weight_in_mst << "---------" << endl;
+    //cout << "-------------MST's max edge weight: " << max_edge_weight_in_mst << "---------" << endl;
     return mst_weight;
 }
 
@@ -263,11 +263,10 @@ double kruskal_trials(int numpoints, uint numtrials, uint dimension) {
         double mst_weight = g.kruskal();
         mst_weight_sum+=mst_weight;
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-        //delete &g;
-        std::cout << numpoints << " points, dimension " << dimension << ", weight " << mst_weight << ", Time difference: = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+        std::cout << numpoints << " points, dimension " << dimension << ", weight " << mst_weight << ", Time: = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
     
     }
-    cout << "\nMST Weight: " << mst_weight_sum/numtrials << endl;
+    cout << "Avg MST Weight: " << mst_weight_sum/numtrials << "\n" << endl;
     return mst_weight_sum/numtrials;
 }
 
@@ -277,7 +276,7 @@ void produce_table_times(uint dimension) {
     //int n_values[num_n_values_to_test] = {128, 256, 512, 1024, 2048, 4096, 8192, 16384};
     int n_values[12] = {128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144};
 
-    outdata.open("runtimes_dim"+to_string(dimension)+".dat", std::ios_base::app); // opens the file
+    outdata.open("avg_mst_weight_dim"+to_string(dimension)+".dat", std::ios_base::app); // opens the file
     if( !outdata ) { // file couldn't be opened
         cerr << "Error: file could not be opened" << endl;
         exit(1);
@@ -307,10 +306,13 @@ int main(int argc, char **argv) {
         cout << g.kruskal() << endl;
     }
     if (flag == 2) { // generate all tables of values
+        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
         produce_table_times(0);
         produce_table_times(2);
         produce_table_times(3);
         produce_table_times(4);
+        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    std::cout << "Time to generate run all experiments: = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
     }
     if (flag == 0) { // generate just one table of values for the first argument
         produce_table_times(dimension);
@@ -326,3 +328,5 @@ int main(int argc, char **argv) {
 
     
 }
+
+// NOTE: could also modify program to store the average (over each 5 trials) time it takes to run kruskal() in another text file
