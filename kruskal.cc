@@ -108,6 +108,7 @@ double Graph::kruskal()
     sort(edges.begin(), edges.end());
     // Initialize disjoint set
     DisjointSets ds(V);
+    double max_edge_weight_in_mst = 0;
   
     // Iterate through all sorted edges
     vector< pair<double, iPair> >::iterator it;
@@ -120,11 +121,89 @@ double Graph::kruskal()
         int set_v = ds.find(v);
         if (set_u != set_v)
         {
+            max_edge_weight_in_mst = std::max(max_edge_weight_in_mst,it->first);
             mst_weight += it->first;
             ds.merge(set_u, set_v);
         }
     }
+    cout << "-------------MST's max edge weight: " << max_edge_weight_in_mst << "---------" << endl;
     return mst_weight;
+}
+
+Graph getGraphThrowAwaySomeEdges(int numpoints,uint dimension) {
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+    int num_edges = numpoints*(numpoints-1)/2;
+    Graph g(numpoints, num_edges);
+
+    random_device rd; 
+    mt19937 gen(rd()); 
+    uniform_real_distribution<> dis(0,1.0);
+
+    if (dimension==0) {
+        double edge_cutoff = 6*pow(numpoints,-0.919);
+        for (int i=0; i<numpoints; ++i) {
+            for (int j=i+1; j<numpoints; ++j) {
+                    double weight = (double) dis(gen);
+                    if (weight < edge_cutoff) {
+                        g.addEdge(i,j,weight);
+                    }   
+            }
+        }
+        return g;
+    }
+    
+    double** arr = new double*[numpoints];
+    for (int i = 0; i < numpoints; ++i) {
+        arr[i] = new double[dimension];
+        for (uint j = 0; j < dimension; ++j) {
+            arr[i][j] = (double) dis(gen);
+        }
+    }
+
+    // Add all n choose 2 edges
+    double edge_cutoff=10;
+    if (dimension==2) {
+        edge_cutoff=2.6*pow(numpoints,-.514);
+    }
+    if (dimension==3) {
+        // Note: without the edge weight cutoff, kruskal takes ~85 seconds for MST with 32768 points of dimension 3
+        // Note: with the edge weight cutoff, kruskal takes ~35 milliseconds for MST with 32768 points of dimension 3
+        edge_cutoff=2*pow(numpoints,-0.342);
+    }
+    if (dimension==4) {
+        // Note: without the edge weight cutoff, kruskal takes ~85 seconds for MST with 32768 points of dimension 3
+        // Note: with the edge weight cutoff, kruskal takes ~35 milliseconds for MST with 32768 points of dimension 3
+        edge_cutoff=1.6*pow(numpoints,-0.243);
+    }
+    for (int i=0; i<numpoints; ++i) {
+        for (int j=i+1; j<numpoints; ++j) {
+                double weight = 0; // Euclidean distance between arr[i] and arr[j]
+                if (dimension==2) {
+                    weight = sqrt(pow(arr[i][0]-arr[j][0],2)+pow(arr[i][1]-arr[j][1],2));
+                }
+                if (dimension==3) {
+                    weight = sqrt(pow(arr[i][0]-arr[j][0],2)+pow(arr[i][1]-arr[j][1],2)+pow(arr[i][2]-arr[j][2],2));
+                }
+                if (dimension==4) {
+                    weight = sqrt(pow(arr[i][0]-arr[j][0],2)+pow(arr[i][1]-arr[j][1],2)+pow(arr[i][2]-arr[j][2],2)+pow(arr[i][3]-arr[j][3],2));
+                }
+                if (weight < edge_cutoff) {
+                    g.addEdge(i,j,weight);
+                }   
+        }
+    }
+    // Free arr
+    // Free each sub-array
+    for(int i = 0; i < numpoints; ++i) {
+        delete[] arr[i];   
+    }
+    // Free the array of pointers
+    delete[] arr;
+
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    std::cout << "Time to generate graph: = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+
+    return g;
 }
 
 Graph getGraph(int numpoints,uint dimension) {
@@ -144,7 +223,6 @@ Graph getGraph(int numpoints,uint dimension) {
                     weight = (double) dis(gen);
                 }
                 else {
-                    //double arr[numpoints][dimension];
                     double** arr = new double*[numpoints];
                     for (int i = 0; i < numpoints; ++i) {
                         arr[i] = new double[dimension];
@@ -152,11 +230,6 @@ Graph getGraph(int numpoints,uint dimension) {
                             arr[i][j] = (double) dis(gen);
                         }
                     }
-                    /**for (uint i = 0; i <numpoints; i++){
-                        for(uint k = 0; k < dimension; k++){
-                            arr[i][k] = (double) dis(gen);
-                        }
-                    }*/
                     if (dimension==2) {
                         weight = sqrt(pow(arr[i][0]-arr[j][0],2)+pow(arr[i][1]-arr[j][1],2));
                     }
@@ -184,12 +257,14 @@ Graph getGraph(int numpoints,uint dimension) {
 double kruskal_trials(int numpoints, uint numtrials, uint dimension) {
     double mst_weight_sum = 0;
     for (uint i = 0; i < numtrials; ++i) {
-        Graph g=getGraph(numpoints,dimension);
+        // NOTE: throw away edges
+        Graph g=getGraphThrowAwaySomeEdges(numpoints,dimension);
         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-        mst_weight_sum+=g.kruskal();
+        double mst_weight = g.kruskal();
+        mst_weight_sum+=mst_weight;
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
         //delete &g;
-        std::cout << numpoints << " points, dimension " << dimension << ", " << "Time difference: = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+        std::cout << numpoints << " points, dimension " << dimension << ", weight " << mst_weight << ", Time difference: = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
     
     }
     cout << "\nMST Weight: " << mst_weight_sum/numtrials << endl;
@@ -227,7 +302,8 @@ int main(int argc, char **argv) {
     (void) numtrials; // avoid uninitialized variable warnings
 
     if (flag==1) { // run kruskal for one graph with the given numpoints, dimension
-        Graph g=getGraph(numpoints,dimension);
+        Graph g=getGraphThrowAwaySomeEdges(numpoints,dimension);
+        //Graph g=getGraph(numpoints,dimension);
         cout << g.kruskal() << endl;
     }
     if (flag == 2) { // generate all tables of values
@@ -238,6 +314,12 @@ int main(int argc, char **argv) {
     }
     if (flag == 0) { // generate just one table of values for the first argument
         produce_table_times(dimension);
+    }
+    if (flag == 4) {
+        Graph g_=getGraphThrowAwaySomeEdges(numpoints,dimension);
+        cout << "Throw away edges:" << g_.kruskal() << endl;
+        Graph g=getGraph(numpoints,dimension);
+        cout << "Regular: " << g.kruskal() << endl;
     }
     
     return 0;
