@@ -12,6 +12,15 @@ using namespace std;
 
 // Acknowledgement: Reference https://www.geeksforgeeks.org/kruskals-minimum-spanning-tree-using-stl-in-c/ for how to represent a graph
 
+/**
+Note: Time to compute 30,000 points = 80 seconds
+Runtime increases by about 4x for each 2x increase in the number of points
+I expect ~320 seconds for each trial of 65536, ~1280 seconds for 131072, and ~5120 seconds for 262144
+Running 5 trials on 4 different dimensions for 262144 may take approximately 5120/60*5*4/60 = 28 hours
+    Add ~7 hours for running on 131072 points, ~2 hours for running on 65536 points, ~1 hours for running on the rest
+    Total estimated time to run: ~38 hours
+*/
+
 // Creating shortcut for an integer pair
 typedef  pair<int, int> iPair;
   
@@ -35,6 +44,10 @@ struct Graph
     }
 
     double kruskal();
+
+    ~Graph() {
+        //delete &edges;
+    }
 };
   
 // To represent Disjoint Sets
@@ -114,55 +127,68 @@ double Graph::kruskal()
     return mst_weight;
 }
 
-Graph getGraph(uint numpoints,uint dimension) {
+Graph getGraph(int numpoints,uint dimension) {
     
-    uint num_edges = numpoints*(numpoints-1)/2;
+    int num_edges = numpoints*(numpoints-1)/2;
     Graph g(numpoints, num_edges);
 
     random_device rd; 
     mt19937 gen(rd()); 
     uniform_real_distribution<> dis(0,1.0);
-
-    double arr[numpoints][dimension];
-    if (dimension >= 2) {
-        for (uint i = 0; i <numpoints; i++){
-            for(uint k = 0; k < dimension; k++){
-                arr[i][k] = (double) dis(gen);
-            }
-        }
-    }
     
     // Add all n choose 2 edges
-    for (uint i=0; i<numpoints; ++i) {
-        for (uint j=i+1; j<numpoints; ++j) {
-            if (i!=j) {
+    for (int i=0; i<numpoints; ++i) {
+        for (int j=i+1; j<numpoints; ++j) {
                 double weight = 0; // Euclidean distance between arr[i] and arr[j]
                 if (dimension==0) {
                     weight = (double) dis(gen);
                 }
-                if (dimension==2) {
-                    weight = sqrt(pow(arr[i][0]-arr[j][0],2)+pow(arr[i][1]-arr[j][1],2));
+                else {
+                    //double arr[numpoints][dimension];
+                    double** arr = new double*[numpoints];
+                    for (int i = 0; i < numpoints; ++i) {
+                        arr[i] = new double[dimension];
+                        for (uint j = 0; j < dimension; ++j) {
+                            arr[i][j] = (double) dis(gen);
+                        }
+                    }
+                    /**for (uint i = 0; i <numpoints; i++){
+                        for(uint k = 0; k < dimension; k++){
+                            arr[i][k] = (double) dis(gen);
+                        }
+                    }*/
+                    if (dimension==2) {
+                        weight = sqrt(pow(arr[i][0]-arr[j][0],2)+pow(arr[i][1]-arr[j][1],2));
+                    }
+                    if (dimension==3) {
+                        weight = sqrt(pow(arr[i][0]-arr[j][0],2)+pow(arr[i][1]-arr[j][1],2)+pow(arr[i][2]-arr[j][2],2));
+                    }
+                    if (dimension==4) {
+                        weight = sqrt(pow(arr[i][0]-arr[j][0],2)+pow(arr[i][1]-arr[j][1],2)+pow(arr[i][2]-arr[j][2],2)+pow(arr[i][3]-arr[j][3],2));
+                    }
+                    // Free arr
+                    // Free each sub-array
+                    for(int i = 0; i < numpoints; ++i) {
+                        delete[] arr[i];   
+                    }
+                    // Free the array of pointers
+                    delete[] arr;
                 }
-                if (dimension==3) {
-                    weight = sqrt(pow(arr[i][0]-arr[j][0],2)+pow(arr[i][1]-arr[j][1],2)+pow(arr[i][2]-arr[j][2],2));
-                }
-                if (dimension==4) {
-                    weight = sqrt(pow(arr[i][0]-arr[j][0],2)+pow(arr[i][1]-arr[j][1],2)+pow(arr[i][2]-arr[j][2],2)+pow(arr[i][3]-arr[j][3],2));
-                }
+                
                 g.addEdge(i,j,weight);
-            }
         }
     }
     return g;
 }
 
-double kruskal_trials(uint numpoints, uint numtrials, uint dimension) {
+double kruskal_trials(int numpoints, uint numtrials, uint dimension) {
     double mst_weight_sum = 0;
     for (uint i = 0; i < numtrials; ++i) {
         Graph g=getGraph(numpoints,dimension);
         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
         mst_weight_sum+=g.kruskal();
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+        //delete &g;
         std::cout << numpoints << " points, dimension " << dimension << ", " << "Time difference: = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
     
     }
@@ -172,11 +198,11 @@ double kruskal_trials(uint numpoints, uint numtrials, uint dimension) {
 
 void produce_table_times(uint dimension) {
     ofstream outdata; // outdata is like cin
-    int num_n_values_to_test = 8;
-    int n_values[num_n_values_to_test] = {128, 256, 512, 1024, 2048, 4096, 8192, 16384};
-    //int n_values[12] = {128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144};
+    int num_n_values_to_test = 12;
+    //int n_values[num_n_values_to_test] = {128, 256, 512, 1024, 2048, 4096, 8192, 16384};
+    int n_values[12] = {128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144};
 
-    outdata.open("runtimes_dim"+to_string(dimension)+".dat"); // opens the file
+    outdata.open("runtimes_dim"+to_string(dimension)+".dat", std::ios_base::app); // opens the file
     if( !outdata ) { // file couldn't be opened
         cerr << "Error: file could not be opened" << endl;
         exit(1);
@@ -193,23 +219,24 @@ void produce_table_times(uint dimension) {
     return;
     }
 
-// ./randmst 0 numpoints numtrials dimension
+// ./kruskal 0 numpoints numtrials dimension
 int main(int argc, char **argv) {
-    cout << argc << endl;
     assert(argc==5);
-    uint flag=atoi(argv[1]),numpoints=atoi(argv[2]),numtrials=atoi(argv[3]),dimension=atoi(argv[4]);
+    int numpoints = atoi(argv[2]);
+    uint flag=atoi(argv[1]),numtrials=atoi(argv[3]),dimension=atoi(argv[4]);
+    (void) numtrials; // avoid uninitialized variable warnings
 
-    if (flag==1) {
+    if (flag==1) { // run kruskal for one graph with the given numpoints, dimension
         Graph g=getGraph(numpoints,dimension);
-        mst_weight_sum+=g.kruskal();
+        cout << g.kruskal() << endl;
     }
-    if (flag == 2) {
+    if (flag == 2) { // generate all tables of values
         produce_table_times(0);
         produce_table_times(2);
         produce_table_times(3);
         produce_table_times(4);
     }
-    else {
+    if (flag == 0) { // generate just one table of values for the first argument
         produce_table_times(dimension);
     }
     
