@@ -104,7 +104,7 @@ struct Graph
 };
 
 Graph getGraph(int numpoints,uint dimension) {
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+    
     Graph g(numpoints);
 
     // Reseed the uniform_real_distribution random number generator
@@ -169,10 +169,6 @@ Graph getGraph(int numpoints,uint dimension) {
         delete[] arr[i];   
     }
     delete[] arr; // Free the array of pointers
-
-    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    std::cout << "Time to generate graph: = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
-
     return g;
 }
 
@@ -180,14 +176,11 @@ double kruskal_trials(int numpoints, uint numtrials, uint dimension) {
     double mst_weight_sum = 0;
     for (uint i = 0; i < numtrials; ++i) {
         Graph g=getGraph(numpoints,dimension);
-        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+        
         double mst_weight = g.kruskal();
         mst_weight_sum+=mst_weight;
-        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-        std::cout << numpoints << " points, dimension " << dimension << ", weight " << mst_weight << ", Time: = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
-    
     }
-    cout << "Avg MST Weight: " << mst_weight_sum/numtrials << "\n" << endl;
+    cout << mst_weight_sum/numtrials << endl;
     return mst_weight_sum/numtrials;
 }
 
@@ -196,7 +189,7 @@ void produce_table_times(uint dimension) {
     int num_n_values_to_test = 12;
     int n_values[12] = {128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144};
 
-    outdata.open("avg_mst_weight_dim"+to_string(dimension)+".dat", std::ios_base::app); // opens the file
+    outdata.open("avg_mst_weight_dim"+to_string(dimension)+".dat", ios_base::app); // opens the file
     if( !outdata ) { // file couldn't be opened
         cerr << "Error: file could not be opened" << endl;
         exit(1);
@@ -227,13 +220,10 @@ int main(int argc, char **argv) {
         cout << g.kruskal() << endl;
     }
     if (flag == 2) { // generate all tables of values
-        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
         produce_table_times(0);
         produce_table_times(2);
         produce_table_times(3);
         produce_table_times(4);
-        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-        std::cout << "Time to generate all experiment data: = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
     }
     if (flag == 5) { // generate just one table of values for the first argument
         produce_table_times(dimension);
